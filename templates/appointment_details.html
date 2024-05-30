@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Confirmation</title>
+    <!--<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css"> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px auto;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h2, h1 {
+            color: #333;
+        }
+
+        p {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        form {
+            margin-top: 20px;
+        }
+
+        input[type="email"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .cancel-button {
+            background-color: #f44336;
+        }
+
+        .cancel-button:hover {
+            background-color: #e41f1f;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Appointment Confirmation</h2>
+<p><strong>Confirmation Number:</strong> {{ confirmation_number }}</p>
+
+<h1>Estimated Day of Appointment</h1>
+<p>{{ day }}</p>
+
+<h1>Estimated Time of Appointment</h1>
+<p>{{ time }}</p>
+
+<h1>Employee Name</h1>
+<p>{{ hairdresser }}</p>
+
+<h1>Selected Services</h1>
+<ul>
+    {% for service in selected_services %}
+        <li>{{ service }}</li>
+    {% endfor %}
+</ul>
+
+<h1>Total Price</h1>
+<p>${{ total_price }}</p>
+
+<h1>Email Confirmation</h1>
+<form action="{{ url_for('confirm_appointment') }}" method="post">
+    <input type="hidden" name="day" value="{{ day }}">
+    <input type="hidden" name="time" value="{{ time }}">
+    <input type="hidden" name="hairdresser" value="{{ hairdresser }}">
+    <input type="hidden" name="services" value="{{ selected_services | join(', ') | safe }}">
+    <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
+    <input type="email" name="email" placeholder="Your Email" required aria-label="Email Address">
+    <button type="submit">Confirm Appointment</button>
+</form>
+
+<h1>Cancel Appointment</h1>
+<form action="{{ url_for('cancel_appointment_email', confirmation_number=confirmation_number) }}" method="get">
+    <button type="submit" class="cancel-button">Cancel Appointment</button>
+</form>
+
+</body>
+</html>

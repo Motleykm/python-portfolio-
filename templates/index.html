@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Appointment Form</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    body {
+      background-image: url(https://media.timeout.com/images/100503697/1536/864/image.webp);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      background-size: cover;
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    form {
+      max-width: 400px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    label {
+      display: block;
+      font-size: 1.2em;
+      margin-bottom: 5px;
+    }
+
+    select, input[type="text"], input[type="email"], input[type="submit"], textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 1em;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    input[type="submit"] {
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+
+    p.error {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Book an Appointment</h2>
+  <form action="/submit_appointment" method="post">
+    <div class="form-group">
+      <label for="day">Select Day:</label>
+      <select id="day" name="day">
+        <option value="Monday">Monday</option>
+        <option value="Tuesday">Tuesday</option>
+        <option value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
+        <option value="Sunday">Sunday</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="time">Select Time:</label>
+      <select id="time" name="time">
+        <option value="9:00 am">9:00 am</option>
+        <option value="10:00 am">10:00 am</option>
+        <option value="11:00 am">11:00 am</option>
+        <option value="12:00 pm">12:00 pm</option>
+        <option value="1:00 pm">1:00 pm</option>
+        <option value="2:00 pm">2:00 pm</option>
+        <option value="3:00 pm">3:00 pm</option>
+        <option value="4:00 pm">4:00 pm</option>
+        <option value="5:00 pm">5:00 pm</option>
+        <option value="6:00 pm">6:00 pm</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="hairdresser">Select Hairdresser:</label>
+      <select id="hairdresser" name="hairdresser">
+        <option value="Jamil">Jamil</option>
+        <option value="Cherish">Cherish</option>
+        <option value="Shanice">Shanice</option>
+        <option value="Arrinana">Arrinana</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="services">Select Service(s):</label>
+      <textarea id="services" name="services" placeholder="Enter service(s) separated by commas"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email (Optional):</label>
+      <input type="email" id="email" name="email" placeholder="Enter your email address" aria-label="Email Address" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+    </div>
+
+    <input type="submit" value="Submit">
+  </form>
+  <p class="error">Please be mindful and cancel within 24 hours of your scheduled appointment. Otherwise, you will be charged the full price for the appointment!</p>
+  <p>Thanks for allowing us to serve you.</p>
+</body>
+</html>
