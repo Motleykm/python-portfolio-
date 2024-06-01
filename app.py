@@ -1,6 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mail import Mail, Message
-
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import uuid
+from datetime import datetime
+import os
 from utilities.price_calculator import (
     REG_HAIRSTYLES_PRICES,
     WEAVE_HAIRSTYLES_PRICES,
@@ -8,28 +13,26 @@ from utilities.price_calculator import (
     HAIRCUT_STYLES_PRICES,
     calculate_total_price
 )
-from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import uuid
 
-DATABASE_URL = "sqlite:///appointments.db"
-
+# Initialize Flask app
 app = Flask(__name__)
 
+# Set the secret key for session management
+app.secret_key = os.urandom(24)  # Generate a random secret key
+
+# Database configuration
+DATABASE_URL = "sqlite:///appointment2.db"
+engine = create_engine(DATABASE_URL, echo=True)
+Base = declarative_base()
 
 # Email configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = ( 'kmotley09@gmail.com')
-app.config['MAIL_PASSWORD'] = ( 'ktzq qreu rqoa wprv')
+app.config['MAIL_USERNAME'] = 'kmotley09@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ktzq qreu rqoa wprv'
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
-
 mail = Mail(app)
-engine = create_engine(DATABASE_URL, echo=True)
-Base = declarative_base()
 
 # Define the Appointment model
 class Appointment(Base):
@@ -41,7 +44,7 @@ class Appointment(Base):
     hairdresser = Column(String, nullable=False)
     cost = Column(Float, nullable=False)
     email = Column(String, nullable=False)
-    confirmation_number = Column(String, nullable=True, unique=True)
+    confirmation_number = Column(String, nullable=False, unique=True)
 
 # Create the database tables
 Base.metadata.create_all(engine)
@@ -49,9 +52,11 @@ Base.metadata.create_all(engine)
 # Create a configured "Session" class
 SessionLocal = sessionmaker(bind=engine)
 
+# Function to generate a unique confirmation number
 def generate_confirmation_number():
     return str(uuid.uuid4())
 
+# Function to add an appointment to the database
 def add_appointment(time, service, day, hairdresser, cost, email, confirmation_number):
     session = SessionLocal()
     try:
@@ -209,14 +214,16 @@ def cancel_appointment_email(confirmation_number):
     try:
         appointment = session.query(Appointment).filter_by(confirmation_number=confirmation_number).first()
         if not appointment:
+            app.logger.error(f'Appointment with confirmation number {confirmation_number} not found.')
             return render_template('cancel_appointment.html', message='Appointment not found.', error=True)
 
+        app.logger.info(f'Deleting appointment with confirmation number {confirmation_number}')
         email = appointment.email
         session.delete(appointment)
         session.commit()
 
         send_cancellation_email(email)
-        return render_template('cancel_appointment.html', message='Your appointment has been successfully canceled.')
+        return render_template('confirmed_cancellation.html')
     except Exception as e:
         session.rollback()
         app.logger.error(f'Error cancelling appointment: {str(e)}')
@@ -248,16 +255,18 @@ def cancel_appointment():
         try:
             appointment = session.query(Appointment).filter_by(id=appointment_id).first()
             if not appointment:
+                app.logger.error(f'Appointment with ID {appointment_id} not found.')
                 flash('Appointment not found.')
                 return redirect(url_for('appointment_form'))
 
+            app.logger.info(f'Deleting appointment with ID {appointment_id}')
             email = appointment.email
             session.delete(appointment)
             session.commit()
 
             send_cancellation_email(email)
             flash('Appointment cancelled successfully.')
-            return render_template('cancel_appointment.html', message='Your appointment has been successfully canceled.')
+            return render_template('confirmed_cancellation.html')
         except Exception as e:
             session.rollback()
             app.logger.error(f'Error cancelling appointment: {str(e)}')
@@ -269,6 +278,37 @@ def cancel_appointment():
         app.logger.error(f'Error processing cancellation: {str(e)}')
         flash('An error occurred while processing your request.')
         return redirect(url_for('appointment_form'))
+
+@app.route('/change_appointment', methods=['GET', 'POST'])
+def change_appointment():
+    if request.method == 'POST':
+        appointment_id = request.form.get('appointment_id')
+        new_day = request.form.get('new_day')
+        new_time = request.form.get('new_time')
+        session = SessionLocal()
+        try:
+            appointment = session.query(Appointment).filter_by(id=appointment_id).first()
+            if not appointment:
+                flash('Appointment not found.')
+                return redirect(url_for('change_appointment'))
+
+            # Update the appointment details
+            appointment.day = new_day
+            datetime_format = "%I:%M %p"
+            new_datetime = datetime.strptime(new_time, datetime_format).replace(year=appointment.time.year, month=appointment.time.month, day=appointment.time.day)
+            appointment.time = new_datetime
+            session.commit()
+            flash('Appointment updated successfully.')
+            return redirect(url_for('appointment_form'))
+        except Exception as e:
+            session.rollback()
+            app.logger.error(f'Error updating appointment: {str(e)}')
+            flash('An error occurred while updating the appointment.')
+            return redirect(url_for('change_appointment'))
+        finally:
+            session.close()
+    else:
+        return render_template('change_appointment.html')
 
 if __name__ == "__main__":
     app.run(debug=True)

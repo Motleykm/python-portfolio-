@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Appointment</title>
+</head>
+<body>
+    <h1>Change Appointment</h1>
+    <form action="{{ url_for('change_appointment') }}" method="post">
+        <label for="appointment_id">Appointment ID:</label>
+        <input type="text" id="appointment_id" name="appointment_id" required><br>
+
+        <label for="new_day">New Day:</label>
+        <input type="text" id="new_day" name="new_day" required><br>
+
+        <label for="new_time">New Time:</label>
+        <input type="text" id="new_time" name="new_time" required><br>
+
+        <button type="submit">Change Appointment</button>
+    </form>
+</body>
+</html>
