@@ -26,20 +26,20 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+        .error-details {
+            color: #333;
+            font-size: 1em;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 <div class="error-container">
+    <h2>Error</h2>
     {% if error_message %}
-        <h2>{{ error_message }}</h2>
-    {% elif hairdresser_not_available %}
-        <h2>Selected hairdresser is not available on this day.</h2>
-    {% elif time_not_available %}
-        <h2>Selected time is not available for the chosen hairdresser. Available times: {{ available_times | join(', ') }}</h2>
-    {% elif service_not_provided %}
-        <h2>Sorry, one or more selected services are not provided.</h2>
+        <p class="error-details">{{ error_message }}</p>
     {% else %}
-        <h2>An unknown error has occurred. Please try again later.</h2>
+        <p class="error-details">An unknown error has occurred. Please try again later.</p>
     {% endif %}
 </div>
 </body>
