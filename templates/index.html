@@ -12,16 +12,22 @@
             padding: 0;
             background-color: #f9f9f9;
         }
+        .header-image {
+            width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="text-center mt-5">Appointment Booking</h1>
 
-        <form id="appointment-form">
+        <img src="https://media.timeout.com/images/100503697/1536/864/image.webp" alt="Salon Image" class="header-image mb-4">
+
+        <form action="/submit_appointment" method="post" id="appointment-form">
             <div class="mb-3">
                 <label for="hairdresser-select" class="form-label">Select Hairdresser:</label>
-                <select id="hairdresser-select" class="form-control">
+                <select id="hairdresser-select" name="hairdresser" class="form-control">
                     <option value="Jamil">Jamil</option>
                     <option value="Shanice">Shanice</option>
                     <option value="Cherrish">Cherrish</option>
@@ -31,7 +37,7 @@
 
             <div class="mb-3">
                 <label for="day-select" class="form-label">Select Day:</label>
-                <select id="day-select" class="form-control">
+                <select id="day-select" name="day" class="form-control">
                     <option value="Monday">Monday</option>
                     <option value="Tuesday">Tuesday</option>
                     <option value="Wednesday">Wednesday</option>
@@ -42,120 +48,40 @@
             </div>
 
             <div class="mb-3">
+                <label for="date-input" class="form-label">Select Date:</label>
+                <input type="date" id="date-input" name="date" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
                 <label for="time-select" class="form-label">Select Time:</label>
-                <select id="time-select" class="form-control">
-                    <!-- Time options will be dynamically generated -->
+                <select id="time-select" name="time" class="form-control">
+                    <option value="9:00 am">9:00 am</option>
+                    <option value="10:00 am">10:00 am</option>
+                    <option value="11:00 am">11:00 am</option>
+                    <option value="1:00 pm">1:00 pm</option>
+                    <option value="4:00 pm">4:00 pm</option>
+                    <option value="8:00 am">8:00 am</option>
+                    <option value="12:00 pm">12:00 pm</option>
+                    <option value="2:00 pm">2:00 pm</option>
+                    <option value="3:00 pm">3:00 pm</option>
+                    <option value="5:00 pm">5:00 pm</option>
+                    <option value="6:00 pm">6:00 pm</option>
+                    <option value="7:00 pm">7:00 pm</option>
                 </select>
             </div>
 
             <div class="mb-3">
                 <label for="services-input" class="form-label">Select Services:</label>
-                <input type="text" id="services-input" class="form-control" placeholder="Enter services (comma separated)">
+                <input type="text" id="services-input" name="services" class="form-control" placeholder="Enter services (comma separated)">
             </div>
 
             <div class="mb-3">
                 <label for="email-input" class="form-label">Email:</label>
-                <input type="email" id="email-input" class="form-control" placeholder="Enter your email">
+                <input type="email" id="email-input" name="email" class="form-control" placeholder="Enter your email">
             </div>
 
-            <button type="button" id="book-appointment" class="btn btn-primary w-100">Book Appointment</button>
+            <button type="submit" class="btn btn-primary w-100">Book Appointment</button>
         </form>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script>
-        const availabilityDay = {
-            "Monday": {
-                "Shanice": ["9:00 am", "11:00 am", "1:00 pm", "4:00 pm"],
-                "Jamil": ["10:00 am", "12:00 pm", "2:00 pm", "4:00 pm"]
-            },
-            "Tuesday": {
-                "Arriana": ["10:00 am", "2:00 pm", "3:00 pm", "6:00 pm"],
-                "Cherrish": ["11:00 am", "4:00 pm", "5:00 pm", "6:00 pm"]
-            },
-            "Wednesday": {
-                "Arriana": ["9:00 am", "12:00 pm", "3:00 pm", "5:00 pm"],
-                "Jamil": ["10:00 am", "5:00 pm"],
-                "Cherrish": ["11:00 am", "4:30 pm"]
-            },
-            "Thursday": {
-                "Shanice": ["9:00 am", "3:00 pm", "4:00 pm", "5:00 pm"],
-                "Jamil": ["9:00 am", "3:00 pm", "4:00 pm", "5:00 pm"],
-                "Cherrish": ["10:00 am", "5:00 pm"]
-            },
-            "Friday": {
-                "Shanice": ["10:00 am", "12:00 pm", "2:00 pm", "5:00 pm"],
-                "Jamil": ["10:00 am", "3:00 pm", "4:00 pm", "6:00 pm"],
-                "Cherrish": ["10:00 am", "5:00 pm"]
-            },
-            "Saturday": {
-                "Shanice": ["10:00 am", "12:00 pm", "2:00 pm", "4:00 pm"],
-                "Jamil": ["9:00 am", "4:00 pm"],
-                "Cherrish": ["10:00 am", "4:00 pm"]
-            }
-        };
-
-        function populateTimeSelect(day, hairdresser) {
-            const times = availabilityDay[day][hairdresser];
-            const timeSelect = $('#time-select');
-            timeSelect.empty();
-            times.forEach(time => {
-                timeSelect.append(new Option(time, time));
-            });
-        }
-
-        $('#day-select, #hairdresser-select').change(function() {
-            const day = $('#day-select').val();
-            const hairdresser = $('#hairdresser-select').val();
-            populateTimeSelect(day, hairdresser);
-        });
-
-        $('#book-appointment').click(function() {
-            const day = $('#day-select').val();
-            const time = $('#time-select').val();
-            const hairdresser = $('#hairdresser-select').val();
-            const services = $('#services-input').val().split(',').map(service => service.trim());
-            const email = $('#email-input').val();
-
-            if (!services.length) {
-                alert('Please enter the services.');
-                return;
-            }
-
-            const data = {
-                day: day,
-                time: time,
-                hairdresser: hairdresser,
-                services: services,
-                email: email
-            };
-
-            console.log("Booking data: ", data);
-
-            $.ajax({
-                type: 'POST',
-                url: '/submit_appointment',
-                data: JSON.stringify(data),
-                contentType: 'application/json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        window.location.href = `/confirm_appointment?day=${response.day}&time=${response.time}&hairdresser=${response.hairdresser}&services=${response.selected_services.join(',')}&confirmation_number=${response.confirmation_number}`;
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function(xhr) {
-                    console.log("Error response: ", xhr.responseText);
-                    alert('Failed to book appointment.');
-                }
-            });
-        });
-
-        $(document).ready(function() {
-            const initialDay = $('#day-select').val();
-            const initialHairdresser = $('#hairdresser-select').val();
-            populateTimeSelect(initialDay, initialHairdresser);
-        });
-    </script>
 </body>
 </html>
