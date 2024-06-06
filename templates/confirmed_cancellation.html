@@ -3,16 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cancellation Confirmed</title>
+    <title>Appointment Canceled</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            margin-top: 50px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Appointment canceled successfully.</h1>
-    <p>
-        <a href="{{ url_for('appointment_form') }}">Book another appointment</a>
-    </p>
-    <p>
-        <a href="{{ url_for('change_appointment') }}">Change an existing appointment</a>
-    </p>
-
+    <div class="container">
+        <h1 class="text-center mt-5">Appointment Canceled Successfully</h1>
+        <p class="text-center">Your appointment has been canceled successfully.</p>
+        <div class="text-center">
+            <a href="/" class="btn btn-primary mt-3">Book another appointment</a>
+            <a href="/change_appointment" class="btn btn-secondary mt-3">Change an existing appointment</a>
+        </div>
+    </div>
 </body>
 </html>
