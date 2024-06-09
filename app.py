@@ -4,9 +4,10 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
-from utilities.price_calculator import (
+import calendar
+from utilities .price_calculator import (
     REG_HAIRSTYLES_PRICES,
     WEAVE_HAIRSTYLES_PRICES,
     BRAIDS_AND_LOCS_PRICES,
@@ -14,11 +15,12 @@ from utilities.price_calculator import (
     calculate_total_price
 )
 
+
 # Initialize Flask app
 app = Flask(__name__)
 
 # Set the secret key for session management
-app.secret_key = os.urandom(24)  # Generate a random secret key
+app.secret_key = os.urandom(24)
 
 # Database configuration
 DATABASE_URL = "sqlite:///appointment2.db"
@@ -118,6 +120,19 @@ def appointment_form():
     )
     return render_template('index.html', services=services, availability=availability_day)
 
+# Add the route for handling date-to-day conversion
+@app.route('/get_day_from_date', methods=['POST'])
+def get_day_from_date():
+    data = request.json
+    date_str = data.get('date')
+
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        day_name = calendar.day_name[date_obj.weekday()]
+        return jsonify({'day': day_name})
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+
 @app.route('/submit_appointment', methods=['POST'])
 def book_appointment():
     try:
@@ -126,15 +141,17 @@ def book_appointment():
             return render_template('error.html', error_message='Please select at least one service.')
 
         selected_services = [service.strip() for service in services_input.split(',')]
-        day = request.form.get('day')
-        date = request.form.get('date')
+        date_str = request.form.get('date')
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+
         time = request.form.get('time')
         hairdresser = request.form.get('hairdresser')
         email = request.form.get('email')
 
-        if not all([day, date, time, hairdresser, email]):
+        if not all([date_str, time, hairdresser, email]):
             return render_template('error.html', error_message='Please fill out all fields.')
 
+        day = date.strftime('%A')
         if day == "Sunday":
             return render_template('closed.html', error_message='Sorry, we are closed on Sundays. Please select another day.')
 
@@ -159,7 +176,7 @@ def book_appointment():
         appointment_id = str(uuid.uuid4())  # Generate a unique appointment ID
 
         return render_template(
-            'appointment_details.html', day=day, date=date, time=time, total_price=total_price,
+            'appointment_details.html', day=day, date=date_str, time=time, total_price=total_price,
             hairdresser=hairdresser, selected_services=selected_services, confirmation_number=confirmation_number,
             email=email, appointment_id=appointment_id
         )
@@ -364,6 +381,34 @@ def get_fully_booked_dates():
         return jsonify({"error": "Failed to fetch fully booked dates"}), 500
     finally:
         session.close()
+
+def generate_unavailable_dates(hairdresser):
+    unavailable_dates = []
+    start_date = datetime.today()
+    end_date = start_date + timedelta(days=365)  # Adjust the range as needed
+
+    current_date = start_date
+    while current_date <= end_date:
+        day_name = current_date.strftime('%A')
+        if hairdresser not in availability_day.get(day_name, {}):
+            unavailable_dates.append(current_date.strftime('%Y-%m-%d'))
+        current_date += timedelta(days=1)
+
+    return unavailable_dates
+
+@app.route('/unavailable_dates', methods=['POST'])
+def unavailable_dates():
+    hairdresser = request.json['hairdresser']
+    unavailable_dates = generate_unavailable_dates(hairdresser)
+    return jsonify(unavailable_dates)
+
+@app.route('/available_times', methods=['POST'])
+def available_times():
+    selected_date = request.json['date']
+    hairdresser = request.json['hairdresser']
+    day_name = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%A')
+    times = availability_day.get(day_name, {}).get(hairdresser, [])
+    return jsonify(times)
 
 if __name__ == "__main__":
     app.run(debug=True)

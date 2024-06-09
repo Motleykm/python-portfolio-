@@ -30,26 +30,19 @@
                 <select id="hairdresser-select" name="hairdresser" class="form-control">
                     <option value="Jamil">Jamil</option>
                     <option value="Shanice">Shanice</option>
-                    <option value="Cherrish">Cherrish</option>
-                    <option value="Arriana">Arriana</option>
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label for="day-select" class="form-label">Select Day:</label>
-                <select id="day-select" name="day" class="form-control">
-                    <option value="Monday">Monday</option>
-                    <option value="Tuesday">Tuesday</option>
-                    <option value="Wednesday">Wednesday</option>
-                    <option value="Thursday">Thursday</option>
-                    <option value="Friday">Friday</option>
-                    <option value="Saturday">Saturday</option>
+                    <option value="Cherish">Cherish</option>
+                    <option value="Arrinana">Arrinana</option>
                 </select>
             </div>
 
             <div class="mb-3">
                 <label for="date-input" class="form-label">Select Date:</label>
                 <input type="date" id="date-input" name="date" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="day-input" class="form-label">Day:</label>
+                <input type="text" id="day-input" name="day" class="form-control" readonly>
             </div>
 
             <div class="mb-3">
@@ -83,5 +76,29 @@
             <button type="submit" class="btn btn-primary w-100">Book Appointment</button>
         </form>
     </div>
+
+    <script>
+        document.getElementById('date-input').addEventListener('change', function () {
+            var date = this.value;
+            fetch('/get_day_from_date', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ date: date }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.day) {
+                    document.getElementById('day-input').value = data.day;
+                } else {
+                    alert('Failed to calculate day from date');
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
 </body>
 </html>
