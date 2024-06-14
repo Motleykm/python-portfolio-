@@ -3,97 +3,92 @@ from tkinter import ttk
 from tkcalendar import Calendar
 import requests
 from datetime import datetime
-import tkinter.messagebox as messagebox
 
+# Function to fetch availability from the Flask server
+def fetch_availability():
+    date = cal.selection_get()
+    hairdresser = hairdresser_var.get()
+    date_str = date.strftime('%Y-%m-%d')
 
-def update_calendar():
-    hairdresser = hairdresser_combobox.get()
-    response = requests.post('http://127.0.0.1:5000/unavailable_dates', json={'hairdresser': hairdresser})
-    unavailable_dates = response.json()
+    response = requests.post(
+        'http://127.0.0.1:5000/hairdresser_availability',
+        json={'date': date_str, 'hairdresser': hairdresser}
+    )
 
-    cal.calevent_remove('unavailable')
-    for date in unavailable_dates:
-        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
-        cal.calevent_create(date_obj, 'Unavailable', 'unavailable')
-
-
-def show_available_times():
-    selected_date = cal.get_date()
-    hairdresser = hairdresser_combobox.get()
-    response = requests.post('http://127.0.0.1:5000/available_times',
-                             json={'date': selected_date, 'hairdresser': hairdresser})
-    available_times = response.json()
-    times_combobox['values'] = available_times
-
-
-def on_date_selected(event):
-    selected_date = cal.get_date()
-    day_of_week = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%A')
-    day_label.config(text=f"Day: {day_of_week}")
-    show_available_times()
-
-
-def book_appointment():
-    selected_date = cal.get_date()
-    selected_time = times_combobox.get()
-    hairdresser = hairdresser_combobox.get()
-    email = email_entry.get()
-
-    if not selected_time or not hairdresser or not email:
-        messagebox.showerror("Error", "Please fill all fields.")
-        return
-
-    response = requests.post('http://127.0.0.1:5000/book',
-                             json={'date': selected_date, 'time': selected_time, 'hairdresser': hairdresser,
-                                   'email': email})
     if response.status_code == 200:
-        messagebox.showinfo("Success", "Appointment booked successfully!")
-        show_available_times()
+        data = response.json()
+        availability = data.get('availability', [])
+        availability_var.set(', '.join(availability))
     else:
-        messagebox.showerror("Error", response.json().get('error', 'Failed to book appointment.'))
+        availability_var.set('Error fetching availability')
 
+# Function to fetch and disable unavailable dates from the Flask server
+def fetch_and_disable_unavailable_dates():
+    hairdresser = hairdresser_var.get()
 
-def cancel_appointment():
-    selected_date = cal.get_date()
-    selected_time = times_combobox.get()
-    hairdresser = hairdresser_combobox.get()
+    response = requests.post(
+        'http://127.0.0.1:5000/hairdresser_full_availability',
+        json={'hairdresser': hairdresser}
+    )
 
-    response = requests.post('http://127.0.0.1:5000/cancel',
-                             json={'date': selected_date, 'time': selected_time, 'hairdresser': hairdresser})
     if response.status_code == 200:
-        messagebox.showinfo("Success", "Appointment cancelled successfully!")
-        show_available_times()
+        data = response.json()
+        unavailable_dates = data.get('unavailable_dates', [])
+        disable_dates(unavailable_dates)
     else:
-        messagebox.showerror("Error", response.json().get('error', 'Failed to cancel appointment.'))
+        print('Error fetching unavailable dates')
 
+# Function to disable specific dates in the calendar
+def disable_dates(dates):
+    cal.calevent_remove('unavailable')  # Remove previous unavailable events
+    for date in dates:
+        date_obj = datetime.strptime(date, '%Y-%m-%d')
+        cal.calevent_create(date_obj, 'unavailable', 'unavailable')
 
+    # Disable Sundays
+    for year in range(2023, 2025):  # Adjust year range as needed
+        for month in range(1, 13):
+            for day in range(1, 32):
+                try:
+                    date_obj = datetime(year, month, day)
+                    if date_obj.weekday() == 6:  # Sunday
+                        cal.calevent_create(date_obj, 'unavailable', 'unavailable')
+                except ValueError:
+                    continue
+
+# Function to handle hairdresser change
+def on_hairdresser_change(event):
+    fetch_and_disable_unavailable_dates()
+
+# Create the main Tkinter window
 root = tk.Tk()
-root.title("Appointment Booking")
+root.title("Hairdresser Availability")
 
+# Create a Calendar widget
+cal = Calendar(root, selectmode='day', year=2024, month=6, day=12)
+cal.pack(pady=20)
+
+# Hairdresser selection
 ttk.Label(root, text="Select Hairdresser:").pack(pady=10)
-hairdresser_combobox = ttk.Combobox(root, values=["Shanice", "Jamil", "Arrinana", "Cherish"], state="readonly")
-hairdresser_combobox.pack(pady=10)
-hairdresser_combobox.bind("<<ComboboxSelected>>", lambda e: update_calendar())
+hairdresser_var = tk.StringVar()
+hairdresser_combo = ttk.Combobox(root, textvariable=hairdresser_var)
+hairdresser_combo['values'] = ["Jamil", "Shanice", "Cherish", "Arrinana"]
+hairdresser_combo.current(0)  # Set default value
+hairdresser_combo.bind("<<ComboboxSelected>>", on_hairdresser_change)
+hairdresser_combo.pack(pady=10)
 
-ttk.Label(root, text="Select a Date:").pack(pady=10)
-cal = Calendar(root, selectmode='day', year=2024, month=6, day=7)
-cal.pack(pady=10)
-cal.bind("<<CalendarSelected>>", on_date_selected)
+# Fetch availability button
+fetch_btn = ttk.Button(root, text="Fetch Availability", command=fetch_availability)
+fetch_btn.pack(pady=20)
 
-day_label = ttk.Label(root, text="Day: ")
-day_label.pack(pady=10)
-
-ttk.Button(root, text="Show Available Times", command=show_available_times).pack(pady=20)
-
+# Display availability
 ttk.Label(root, text="Available Times:").pack(pady=10)
-times_combobox = ttk.Combobox(root)
-times_combobox.pack(pady=10)
+availability_var = tk.StringVar()
+availability_label = ttk.Label(root, textvariable=availability_var)
+availability_label.pack(pady=10)
 
-ttk.Label(root, text="Email:").pack(pady=10)
-email_entry = ttk.Entry(root)
-email_entry.pack(pady=10)
+# Fetch and disable unavailable dates for the default selected hairdresser
+fetch_and_disable_unavailable_dates()
 
-ttk.Button(root, text="Book Appointment", command=book_appointment).pack(pady=10)
-ttk.Button(root, text="Cancel Appointment", command=cancel_appointment).pack(pady=10)
-
+# Start the Tkinter event loop
 root.mainloop()

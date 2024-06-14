@@ -7,14 +7,13 @@ import uuid
 from datetime import datetime, timedelta
 import os
 import calendar
-from utilities .price_calculator import (
+from utilities.price_calculator import (
     REG_HAIRSTYLES_PRICES,
     WEAVE_HAIRSTYLES_PRICES,
     BRAIDS_AND_LOCS_PRICES,
     HAIRCUT_STYLES_PRICES,
     calculate_total_price
 )
-
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -120,7 +119,6 @@ def appointment_form():
     )
     return render_template('index.html', services=services, availability=availability_day)
 
-# Add the route for handling date-to-day conversion
 @app.route('/get_day_from_date', methods=['POST'])
 def get_day_from_date():
     data = request.json
@@ -132,6 +130,41 @@ def get_day_from_date():
         return jsonify({'day': day_name})
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
+
+@app.route('/hairdresser_availability', methods=['POST'])
+def hairdresser_availability():
+    data = request.json
+    date_str = data.get('date')
+    hairdresser = data.get('hairdresser')
+
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        day_name = calendar.day_name[date_obj.weekday()]
+        available_times = availability_day.get(day_name, {}).get(hairdresser, [])
+        return jsonify({'availability': available_times})
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+
+@app.route('/hairdresser_full_availability', methods=['POST'])
+def hairdresser_full_availability():
+    data = request.json
+    hairdresser = data.get('hairdresser')
+
+    try:
+        start_date = datetime.today()
+        end_date = start_date + timedelta(days=365)
+
+        unavailable_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            day_name = calendar.day_name[current_date.weekday()]
+            if hairdresser not in availability_day.get(day_name, {}):
+                unavailable_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+
+        return jsonify({'unavailable_dates': unavailable_dates})
+    except ValueError:
+        return jsonify({'error': 'Invalid request format'}), 400
 
 @app.route('/submit_appointment', methods=['POST'])
 def book_appointment():
@@ -155,6 +188,14 @@ def book_appointment():
         if day == "Sunday":
             return render_template('closed.html', error_message='Sorry, we are closed on Sundays. Please select another day.')
 
+        fully_booked, available_times = is_fully_booked(hairdresser, date)
+
+        if fully_booked:
+            return render_template('error.html', error_message='Sorry, hairdresser is fully booked.')
+
+        if time not in available_times:
+            return render_template('error.html', error_message=f'Selected time is not available. Available times: {", ".join(available_times)}')
+
         for service in selected_services:
             if (
                 service not in REG_HAIRSTYLES_PRICES and
@@ -163,13 +204,6 @@ def book_appointment():
                 service not in HAIRCUT_STYLES_PRICES
             ):
                 return render_template('error.html', error_message='One or more selected services are not provided.')
-
-        if hairdresser not in availability_day.get(day, {}):
-            return render_template('error.html', error_message='Selected hairdresser is not available on this day.')
-
-        if time not in availability_day[day].get(hairdresser, []):
-            available_times = ", ".join(availability_day[day].get(hairdresser, []))
-            return render_template('error.html', error_message=f'Selected time is not available. Available times: {available_times}')
 
         total_price = calculate_total_price(selected_services)
         confirmation_number = generate_confirmation_number()
@@ -186,6 +220,27 @@ def book_appointment():
     except Exception as e:
         app.logger.error(f'Error processing appointment submission: {e}')
         return render_template('error.html', error_message='An error occurred while processing your request.')
+
+def is_fully_booked(hairdresser, date):
+    session = SessionLocal()
+    try:
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+        appointments = session.query(Appointment).filter(
+            Appointment.hairdresser == hairdresser,
+            Appointment.time >= date_start,
+            Appointment.time <= date_end
+        ).all()
+
+        day_name = calendar.day_name[date.weekday()]
+        available_times = availability_day.get(day_name, {}).get(hairdresser, [])
+
+        booked_times = {appt.time.strftime('%I:%M %p') for appt in appointments}
+        available_times = [time for time in available_times if time not in booked_times]
+
+        return not available_times, available_times
+    finally:
+        session.close()
 
 @app.route('/confirm_appointment', methods=['POST'])
 def confirm_appointment():
@@ -410,5 +465,16 @@ def available_times():
     times = availability_day.get(day_name, {}).get(hairdresser, [])
     return jsonify(times)
 
-if __name__ == "__main__":
+@app.route('/get_available_times', methods=['POST'])
+def get_available_times():
+    data = request.get_json()
+    hairdresser = data.get('hairdresser')
+    date = data.get('date')
+    # Fetch available times from predefined data
+    date_obj = datetime.strptime(date, '%Y-%m-%d')
+    day_name = calendar.day_name[date_obj.weekday()]
+    available_times = availability_day.get(day_name, {}).get(hairdresser, [])
+    return jsonify({'available_times': available_times})
+
+if __name__ == '__main__':
     app.run(debug=True)

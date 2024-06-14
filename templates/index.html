@@ -16,12 +16,14 @@
             width: 100%;
             height: auto;
         }
+        #available-times {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="text-center mt-5">Appointment Booking</h1>
-
         <img src="https://media.timeout.com/images/100503697/1536/864/image.webp" alt="Salon Image" class="header-image mb-4">
 
         <form action="/submit_appointment" method="post" id="appointment-form">
@@ -48,18 +50,7 @@
             <div class="mb-3">
                 <label for="time-select" class="form-label">Select Time:</label>
                 <select id="time-select" name="time" class="form-control">
-                    <option value="9:00 am">9:00 am</option>
-                    <option value="10:00 am">10:00 am</option>
-                    <option value="11:00 am">11:00 am</option>
-                    <option value="1:00 pm">1:00 pm</option>
-                    <option value="4:00 pm">4:00 pm</option>
-                    <option value="8:00 am">8:00 am</option>
-                    <option value="12:00 pm">12:00 pm</option>
-                    <option value="2:00 pm">2:00 pm</option>
-                    <option value="3:00 pm">3:00 pm</option>
-                    <option value="5:00 pm">5:00 pm</option>
-                    <option value="6:00 pm">6:00 pm</option>
-                    <option value="7:00 pm">7:00 pm</option>
+                    <!-- Options will be dynamically populated -->
                 </select>
             </div>
 
@@ -75,28 +66,65 @@
 
             <button type="submit" class="btn btn-primary w-100">Book Appointment</button>
         </form>
+
+        <div id="available-times"></div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        document.getElementById('date-input').addEventListener('change', function () {
-            var date = this.value;
-            fetch('/get_day_from_date', {
+        function fetchAvailableTimes(hairdresser, date) {
+            $.ajax({
+                url: '/get_available_times',
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+                contentType: 'application/json',
+                data: JSON.stringify({ hairdresser: hairdresser, date: date }),
+                success: function(response) {
+                    const timeSelect = $('#time-select');
+                    timeSelect.empty();
+                    if (response.available_times && response.available_times.length > 0) {
+                        response.available_times.forEach(time => {
+                            timeSelect.append(`<option value="${time}">${time}</option>`);
+                        });
+                    } else {
+                        alert('No available times for the selected date.');
+                    }
                 },
-                body: JSON.stringify({ date: date }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.day) {
-                    document.getElementById('day-input').value = data.day;
-                } else {
-                    alert('Failed to calculate day from date');
+                error: function() {
+                    alert('Failed to fetch available times');
                 }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
+            });
+        }
+
+        $(document).ready(function() {
+            $('#date-input').on('change', function() {
+                const date = $(this).val();
+                const hairdresser = $('#hairdresser-select').val();
+                fetchAvailableTimes(hairdresser, date);
+
+                $.ajax({
+                    url: '/get_day_from_date',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ date: date }),
+                    success: function(response) {
+                        if (response.day) {
+                            $('#day-input').val(response.day);
+                        } else {
+                            alert('Failed to calculate day from date');
+                        }
+                    },
+                    error: function() {
+                        alert('Failed to calculate day from date');
+                    }
+                });
+            });
+
+            $('#hairdresser-select').on('change', function() {
+                const hairdresser = $(this).val();
+                const date = $('#date-input').val();
+                if (date) {
+                    fetchAvailableTimes(hairdresser, date);
+                }
             });
         });
     </script>
