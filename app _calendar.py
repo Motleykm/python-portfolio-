@@ -4,6 +4,7 @@ from tkcalendar import Calendar
 import requests
 from datetime import datetime
 
+
 # Function to fetch availability from the Flask server
 def fetch_availability():
     date = cal.selection_get()
@@ -22,6 +23,7 @@ def fetch_availability():
     else:
         availability_var.set('Error fetching availability')
 
+
 # Function to fetch and disable unavailable dates from the Flask server
 def fetch_and_disable_unavailable_dates():
     hairdresser = hairdresser_var.get()
@@ -38,27 +40,41 @@ def fetch_and_disable_unavailable_dates():
     else:
         print('Error fetching unavailable dates')
 
+
 # Function to disable specific dates in the calendar
 def disable_dates(dates):
     cal.calevent_remove('unavailable')  # Remove previous unavailable events
+    cal.calevent_remove('available')  # Remove previous available events
+    cal.calevent_remove('sunday')  # Remove previous Sunday events
+    available_days = set()
+
     for date in dates:
         date_obj = datetime.strptime(date, '%Y-%m-%d')
-        cal.calevent_create(date_obj, 'unavailable', 'unavailable')
+        cal.calevent_create(date_obj, 'Unavailable', 'unavailable')
 
-    # Disable Sundays
-    for year in range(2023, 2025):  # Adjust year range as needed
+    # Disable Sundays and highlight available days
+    for year in range(datetime.now().year, datetime.now().year + 2):  # Adjust year range as needed
         for month in range(1, 13):
             for day in range(1, 32):
                 try:
                     date_obj = datetime(year, month, day)
-                    if date_obj.weekday() == 6:  # Sunday
-                        cal.calevent_create(date_obj, 'unavailable', 'unavailable')
+                    day_name = date_obj.strftime('%A')
+                    if day_name == "Sunday":
+                        cal.calevent_create(date_obj, 'Sunday', 'sunday')
+                    elif date_obj.strftime('%Y-%m-%d') not in dates:
+                        available_days.add(date_obj.strftime('%Y-%m-%d'))
                 except ValueError:
                     continue
+
+    for available_date in available_days:
+        date_obj = datetime.strptime(available_date, '%Y-%m-%d')
+        cal.calevent_create(date_obj, 'Available', 'available')
+
 
 # Function to handle hairdresser change
 def on_hairdresser_change(event):
     fetch_and_disable_unavailable_dates()
+
 
 # Create the main Tkinter window
 root = tk.Tk()
@@ -67,6 +83,11 @@ root.title("Hairdresser Availability")
 # Create a Calendar widget
 cal = Calendar(root, selectmode='day', year=2024, month=6, day=12)
 cal.pack(pady=20)
+
+# Configure tags for styling
+cal.tag_config('unavailable', background='gray', foreground='white')
+cal.tag_config('available', background='violet', foreground='black')
+cal.tag_config('sunday', background='white', foreground='black')
 
 # Hairdresser selection
 ttk.Label(root, text="Select Hairdresser:").pack(pady=10)

@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_mail import Mail, Message
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Date, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import uuid
 from datetime import datetime, timedelta
 import os
 import calendar
+
+# Import the price calculator module
 from utilities.price_calculator import (
     REG_HAIRSTYLES_PRICES,
     WEAVE_HAIRSTYLES_PRICES,
@@ -22,9 +24,10 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 # Database configuration
-DATABASE_URL = "sqlite:///appointment2.db"
+DATABASE_URL = "sqlite:///newupdatedappointment.db"
 engine = create_engine(DATABASE_URL, echo=True)
 Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine)
 
 # Email configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -39,6 +42,7 @@ mail = Mail(app)
 class Appointment(Base):
     __tablename__ = 'appointments'
     id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(Date, nullable=False)
     time = Column(DateTime, nullable=False)
     service = Column(String, nullable=False)
     day = Column(String, nullable=False)
@@ -46,23 +50,21 @@ class Appointment(Base):
     cost = Column(Float, nullable=False)
     email = Column(String, nullable=False)
     confirmation_number = Column(String, nullable=False, unique=True)
+    appointment_status = Column(Enum('booked', 'canceled', name='appointment_status'), nullable=False, default='booked')
 
 # Create the database tables
 Base.metadata.create_all(engine)
-
-# Create a configured "Session" class
-SessionLocal = sessionmaker(bind=engine)
 
 # Function to generate a unique confirmation number
 def generate_confirmation_number():
     return str(uuid.uuid4())
 
 # Function to add an appointment to the database
-def add_appointment(time, service, day, hairdresser, cost, email, confirmation_number):
+def add_appointment(date, time, service, day, hairdresser, cost, email, confirmation_number):
     session = SessionLocal()
     try:
         new_appointment = Appointment(
-            time=time, service=service, day=day, hairdresser=hairdresser,
+            date=date, time=time, service=service, day=day, hairdresser=hairdresser,
             cost=cost, email=email, confirmation_number=confirmation_number
         )
         session.add(new_appointment)
@@ -171,30 +173,31 @@ def book_appointment():
     try:
         services_input = request.form.get('services')
         if not services_input:
-            return render_template('error.html', error_message='Please select at least one service.')
+            raise ValueError('Please select at least one service.')
 
         selected_services = [service.strip() for service in services_input.split(',')]
         date_str = request.form.get('date')
         date = datetime.strptime(date_str, '%Y-%m-%d')
 
-        time = request.form.get('time')
+        time_str = request.form.get('time')
+        time = datetime.strptime(time_str, '%I:%M %p').time()
         hairdresser = request.form.get('hairdresser')
         email = request.form.get('email')
 
-        if not all([date_str, time, hairdresser, email]):
-            return render_template('error.html', error_message='Please fill out all fields.')
+        if not all([date_str, time_str, hairdresser, email]):
+            raise ValueError('Please fill out all fields.')
 
         day = date.strftime('%A')
         if day == "Sunday":
-            return render_template('closed.html', error_message='Sorry, we are closed on Sundays. Please select another day.')
+            raise ValueError('Sorry, we are closed on Sundays. Please select another day.')
 
         fully_booked, available_times = is_fully_booked(hairdresser, date)
 
         if fully_booked:
-            return render_template('error.html', error_message='Sorry, hairdresser is fully booked.')
+            raise ValueError('Sorry, hairdresser is fully booked.')
 
-        if time not in available_times:
-            return render_template('error.html', error_message=f'Selected time is not available. Available times: {", ".join(available_times)}')
+        if time_str not in available_times:
+            raise ValueError(f'Selected time is not available. Available times: {", ".join(available_times)}')
 
         for service in selected_services:
             if (
@@ -203,17 +206,22 @@ def book_appointment():
                 service not in BRAIDS_AND_LOCS_PRICES and
                 service not in HAIRCUT_STYLES_PRICES
             ):
-                return render_template('error.html', error_message='One or more selected services are not provided.')
+                raise ValueError('One or more selected services are not provided.')
 
         total_price = calculate_total_price(selected_services)
         confirmation_number = generate_confirmation_number()
         appointment_id = str(uuid.uuid4())  # Generate a unique appointment ID
 
+        add_appointment(date, datetime.combine(date, time), ", ".join(selected_services), day, hairdresser, total_price, email, confirmation_number)
+
         return render_template(
-            'appointment_details.html', day=day, date=date_str, time=time, total_price=total_price,
+            'appointment_details.html', day=day, date=date_str, time=time_str, total_price=total_price,
             hairdresser=hairdresser, selected_services=selected_services, confirmation_number=confirmation_number,
             email=email, appointment_id=appointment_id
         )
+    except ValueError as ve:
+        app.logger.error(f'Validation error: {ve}')
+        return render_template('error.html', error_message=str(ve))
     except KeyError as e:
         app.logger.error(f'Missing key in form data: {e}')
         return render_template('error.html', error_message=f'Missing key: {e}')
@@ -228,8 +236,10 @@ def is_fully_booked(hairdresser, date):
         date_end = datetime.combine(date, datetime.max.time())
         appointments = session.query(Appointment).filter(
             Appointment.hairdresser == hairdresser,
+            Appointment.date == date,
             Appointment.time >= date_start,
-            Appointment.time <= date_end
+            Appointment.time <= date_end,
+            Appointment.appointment_status == 'booked'
         ).all()
 
         day_name = calendar.day_name[date.weekday()]
@@ -257,6 +267,7 @@ def confirm_appointment():
         appointment_datetime = datetime.strptime(f"{date} {time_str}", datetime_format)
 
         add_appointment(
+            date=datetime.strptime(date, '%Y-%m-%d'),
             time=appointment_datetime,
             service=", ".join(selected_services),
             day=day,
@@ -300,7 +311,7 @@ def cancel_appointment_email(confirmation_number):
 
         app.logger.info(f'Deleting appointment with confirmation number {confirmation_number}')
         email = appointment.email
-        session.delete(appointment)
+        appointment.appointment_status = 'canceled'
         session.commit()
 
         send_cancellation_email(email)
@@ -340,16 +351,16 @@ def cancel_appointment():
                 flash('Appointment not found.')
                 return redirect(url_for('appointment_form'))
 
-            app.logger.info(f'Deleting appointment with confirmation number {confirmation_number}')
-            session.delete(appointment)
+            app.logger.info(f'Canceling appointment with confirmation number {confirmation_number}')
+            appointment.appointment_status = 'canceled'
             session.commit()
 
-            flash('Appointment cancelled successfully.')
+            flash('Appointment canceled successfully.')
             return render_template('confirmed_cancellation.html')
         except Exception as e:
             session.rollback()
-            app.logger.error(f'Error cancelling appointment: {str(e)}')
-            flash('An error occurred while cancelling the appointment.')
+            app.logger.error(f'Error canceling appointment: {str(e)}')
+            flash('An error occurred while canceling the appointment.')
             return redirect(url_for('appointment_form'))
         finally:
             session.close()
@@ -379,6 +390,7 @@ def change_appointment(appointment_id):
         try:
             new_datetime = datetime.strptime(f"{new_date} {new_time}", datetime_format)
             appointment.time = new_datetime
+            appointment.date = datetime.strptime(new_date, '%Y-%m-%d')
             appointment.day = new_day
             session.commit()
             flash('Appointment updated successfully.')
@@ -424,12 +436,12 @@ def view_last_appointment():
 def get_fully_booked_dates():
     session = SessionLocal()
     try:
-        appointments = session.query(Appointment).all()
+        appointments = session.query(Appointment).filter_by(appointment_status='booked').all()
         fully_booked_dates = {}
         for appointment in appointments:
             if appointment.hairdresser not in fully_booked_dates:
                 fully_booked_dates[appointment.hairdresser] = []
-            fully_booked_dates[appointment.hairdresser].append(appointment.time.strftime('%Y-%m-%d'))
+            fully_booked_dates[appointment.hairdresser].append(appointment.date.strftime('%Y-%m-%d'))
         return jsonify(fully_booked_dates)
     except Exception as e:
         app.logger.error(f'Error fetching fully booked dates: {str(e)}')

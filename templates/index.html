@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Appointment Booking</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,8 +17,15 @@
             width: 100%;
             height: auto;
         }
-        #available-times {
-            margin-top: 20px;
+        .flatpickr-day.unavailable {
+            color: gray;
+            cursor: not-allowed;
+        }
+        .flatpickr-day.available {
+            color: violet;
+        }
+        .flatpickr-day.sunday {
+            color: black;
         }
     </style>
 </head>
@@ -39,7 +47,7 @@
 
             <div class="mb-3">
                 <label for="date-input" class="form-label">Select Date:</label>
-                <input type="date" id="date-input" name="date" class="form-control" required>
+                <input type="text" id="date-input" name="date" class="form-control" required>
             </div>
 
             <div class="mb-3">
@@ -71,6 +79,7 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         function fetchAvailableTimes(hairdresser, date) {
             $.ajax({
@@ -91,6 +100,41 @@
                 },
                 error: function() {
                     alert('Failed to fetch available times');
+                }
+            });
+        }
+
+        function fetchUnavailableDates(hairdresser) {
+            $.ajax({
+                url: '/hairdresser_full_availability',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ hairdresser: hairdresser }),
+                success: function(response) {
+                    const unavailableDates = response.unavailable_dates;
+                    setupFlatpickr(unavailableDates);
+                },
+                error: function() {
+                    alert('Failed to fetch unavailable dates');
+                }
+            });
+        }
+
+        function setupFlatpickr(unavailableDates) {
+            const unavailableDatesSet = new Set(unavailableDates);
+            $('#date-input').flatpickr({
+                dateFormat: "Y-m-d",
+                onDayCreate: function(dObj, dStr, fp, dayElem) {
+                    const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+                    const dayName = dayElem.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+                    if (unavailableDatesSet.has(dateStr)) {
+                        dayElem.classList.add('unavailable');
+                    } else if (dayName === 'Sunday') {
+                        dayElem.classList.add('sunday');
+                    } else {
+                        dayElem.classList.add('available');
+                    }
                 }
             });
         }
@@ -121,11 +165,16 @@
 
             $('#hairdresser-select').on('change', function() {
                 const hairdresser = $(this).val();
+                fetchUnavailableDates(hairdresser);
                 const date = $('#date-input').val();
                 if (date) {
                     fetchAvailableTimes(hairdresser, date);
                 }
             });
+
+            // Initial load
+            const initialHairdresser = $('#hairdresser-select').val();
+            fetchUnavailableDates(initialHairdresser);
         });
     </script>
 </body>
