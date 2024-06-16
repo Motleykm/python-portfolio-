@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timedelta
 import os
 import calendar
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import the price calculator module
 from utilities.price_calculator import (
@@ -51,6 +52,14 @@ class Appointment(Base):
     email = Column(String, nullable=False)
     confirmation_number = Column(String, nullable=False, unique=True)
     appointment_status = Column(Enum('booked', 'canceled', name='appointment_status'), nullable=False, default='booked')
+
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    full_name = Column(String(150), nullable=False)
+    username = Column(String(150), unique=True, nullable=False)
+    email = Column(String(150), unique=True, nullable=False)
+    password = Column(String(150), nullable=False)
 
 # Create the database tables
 Base.metadata.create_all(engine)
@@ -112,6 +121,84 @@ availability_day = {
         "Arrinana": []
     }
 }
+
+def validate_full_name(full_name):
+    if full_name and isinstance(full_name, str):
+        return "Valid full name"
+    return "Invalid full name"
+
+def validate_username(username):
+    if username and isinstance(username, str) and len(username) >= 3:
+        return "Valid username"
+    return "Invalid username"
+
+def validate_email(email):
+    if email and "@" in email:
+        return "Valid email"
+    return "Invalid email"
+
+def validate_password(password):
+    if password and len(password) >= 6:
+        return "Valid password"
+    return "Invalid password"
+
+@app.route('/signup', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        full_name = request.form['full_name']
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        # Validate inputs
+        full_name_validation = validate_full_name(full_name)
+        username_validation = validate_username(username)
+        email_validation = validate_email(email)
+        password_validation = validate_password(password)
+
+        if full_name_validation != "Valid full name":
+            flash(full_name_validation)
+            return redirect(url_for('register'))
+        if username_validation != "Valid username":
+            flash(username_validation)
+            return redirect(url_for('register'))
+        if email_validation != "Valid email":
+            flash(email_validation)
+            return redirect(url_for('register'))
+        if password_validation != "Valid password":
+            flash(password_validation)
+            return redirect(url_for('register'))
+        if password != confirm_password:
+            flash("Passwords do not match")
+            return redirect(url_for('register'))
+
+        session = SessionLocal()
+        try:
+            # Check if the email or username already exists
+            if session.query(User).filter_by(email=email).first() or session.query(User).filter_by(username=username).first():
+                flash('Email or username already exists.')
+                return redirect(url_for('register'))
+
+            # Hash the password
+            hashed_password = generate_password_hash(password, method='sha256')
+
+            # Create a new user
+            new_user = User(full_name=full_name, username=username, email=email, password=hashed_password)
+
+            # Save the user to the database
+            session.add(new_user)
+            session.commit()
+
+            flash('User registered successfully.')
+            return redirect(url_for('appointment_form'))
+        except Exception as e:
+            session.rollback()
+            flash(f'Error: {e}')
+            return redirect(url_for('register'))
+        finally:
+            session.close()
+    return render_template('signup.html')
 
 @app.route('/')
 def appointment_form():
