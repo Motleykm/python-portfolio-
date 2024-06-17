@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_mail import Mail, Message
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Date, Enum
 from sqlalchemy.ext.declarative import declarative_base
@@ -33,8 +33,8 @@ SessionLocal = sessionmaker(bind=engine)
 # Email configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = 'kmotley09@gmail.com'
-app.config['MAIL_PASSWORD'] = 'ktzq qreu rqoa wprv'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
@@ -181,8 +181,7 @@ def register():
                 return redirect(url_for('register'))
 
             # Hash the password
-            hashed_password = generate_password_hash(password, method='sha256')
-
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
             # Create a new user
             new_user = User(full_name=full_name, username=username, email=email, password=hashed_password)
 
@@ -199,6 +198,53 @@ def register():
         finally:
             session.close()
     return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    print("Current Working Directory:", os.getcwd())
+    print("Templates Directory Contents:", os.listdir('templates'))
+    return render_template('customer_login.html')
+
+    #if request.method == 'POST':
+       # username = request.form['username']
+       # password = request.form['password']
+
+        #session_db = SessionLocal()
+        #user = session_db.query(User).filter_by(username=username).first()
+        #session_db.close()
+
+        #if user and check_password_hash(user.password, password):
+            #session['username'] = user.username
+           # flash('Logged in successfully.')
+            #return redirect(url_for('customer_account'))
+       # else:
+            #flash('Invalid username or password.')
+           #c return redirect(url_for('login'))
+
+
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    session.pop('username', None)
+    flash('Logged out successfully.')
+    return redirect(url_for('logout_success'))
+
+@app.route('/logout_success')
+def logout_success():
+    return render_template('logout.html')
+
+@app.route('/customer_account')
+def customer_account():
+    if 'username' not in session:
+        flash('You need to log in first.')
+        return redirect(url_for('login'))
+
+    username = session['username']
+    session_db = SessionLocal()
+    appointments = session_db.query(Appointment).filter_by(email=username).all()  # Assuming email is the username
+    session_db.close()
+
+    return render_template('customer_account.html', username=username, appointments=appointments)
 
 @app.route('/')
 def appointment_form():

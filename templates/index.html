@@ -27,9 +27,30 @@
         .flatpickr-day.sunday {
             color: black;
         }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+        .navbar .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
     </style>
 </head>
 <body>
+    <nav class="navbar">
+        <div class="navbar-brand">Appointment Booking</div>
+        <div class="nav-buttons">
+            <a href="/signup" class="btn btn-outline-primary">Sign Up</a>
+            <a href="/login" class="btn btn-outline-secondary">Log In</a>
+             <a href="/logout" class="btn btn-outline-secondary">Log Out</a>
+
+        </div>
+    </nav>
     <div class="container">
         <h1 class="text-center mt-5">Appointment Booking</h1>
         <img src="https://media.timeout.com/images/100503697/1536/864/image.webp" alt="Salon Image" class="header-image mb-4">
