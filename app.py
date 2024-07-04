@@ -1,14 +1,13 @@
+import calendar
+import os
+import uuid
+from datetime import datetime, timedelta
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_mail import Mail, Message
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Date, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import uuid
-from datetime import datetime, timedelta
-import os
-import calendar
-from werkzeug.security import generate_password_hash, check_password_hash
-
 # Import the price calculator module
 from utilities.price_calculator import (
     REG_HAIRSTYLES_PRICES,
@@ -17,6 +16,7 @@ from utilities.price_calculator import (
     HAIRCUT_STYLES_PRICES,
     calculate_total_price
 )
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -33,8 +33,8 @@ SessionLocal = sessionmaker(bind=engine)
 # Email configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_USERNAME'] = 'kmotley09@gmail.com'
+app.config['MAIL_PASSWORD'] = 'cprf swoh rnfo snhl'
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
@@ -203,23 +203,24 @@ def register():
 def login():
     print("Current Working Directory:", os.getcwd())
     print("Templates Directory Contents:", os.listdir('templates'))
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        session_db = SessionLocal()
+        user = session_db.query(User).filter_by(username=username).first()
+        session_db.close()
+
+        if user and check_password_hash(user.password, password):
+            session['username'] = user.username
+            flash('Logged in successfully.')
+            return redirect(url_for('customer_account'))
+        else:
+            flash('Invalid username or password.')
+            return redirect(url_for('login'))
+
     return render_template('customer_login.html')
-
-    #if request.method == 'POST':
-       # username = request.form['username']
-       # password = request.form['password']
-
-        #session_db = SessionLocal()
-        #user = session_db.query(User).filter_by(username=username).first()
-        #session_db.close()
-
-        #if user and check_password_hash(user.password, password):
-            #session['username'] = user.username
-           # flash('Logged in successfully.')
-            #return redirect(url_for('customer_account'))
-       # else:
-            #flash('Invalid username or password.')
-           #c return redirect(url_for('login'))
 
 
 
@@ -233,19 +234,23 @@ def logout():
 def logout_success():
     return render_template('logout.html')
 
-@app.route('/customer_account')
+
+@app.route('/customer_account', methods=['GET', 'POST'])
 def customer_account():
+    print("We care about our customers")
     if 'username' not in session:
         flash('You need to log in first.')
         return redirect(url_for('login'))
 
     username = session['username']
+    print(f"Username from session: {username}")  # Debugging print statement
+
     session_db = SessionLocal()
     appointments = session_db.query(Appointment).filter_by(email=username).all()  # Assuming email is the username
+    print(f"Appointments fetched: {appointments}")  # Debugging print statement
     session_db.close()
 
     return render_template('customer_account.html', username=username, appointments=appointments)
-
 @app.route('/')
 def appointment_form():
     services = (
