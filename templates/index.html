@@ -47,13 +47,13 @@
         <div class="nav-buttons">
             <a href="/signup" class="btn btn-outline-primary">Sign Up</a>
             <a href="/login" class="btn btn-outline-secondary">Log In</a>
-             <a href="/logout" class="btn btn-outline-secondary">Log Out</a>
-            <a class="btn btn-outline-secondary" href="/customer_account">Customer_account</a>
-
+            <a class="btn btn-outline-secondary" href="/logout">Log Out</a>
+            <a class="btn btn-outline-secondary" href="/customer_account">Customer Account</a>
         </div>
     </nav>
     <div class="container">
-        <h1 class="text-center mt-5">Appointment Booking</h1>
+        <h1 class="text-center mt-5">Book an Appointment as a Guest</h1>
+        <p class="text-center">No account required! Simply fill out the form below to book your appointment.</p>
         <img src="https://media.timeout.com/images/100503697/1536/864/image.webp" alt="Salon Image" class="header-image mb-4">
 
         <form action="/submit_appointment" method="post" id="appointment-form">
@@ -91,7 +91,8 @@
 
             <div class="mb-3">
                 <label for="email-input" class="form-label">Email:</label>
-                <input type="email" id="email-input" name="email" class="form-control" placeholder="Enter your email">
+                <input class="form-control" id="email-input" name="email" placeholder="Enter your email" required
+                       type="email">
             </div>
 
             <button type="submit" class="btn btn-primary w-100">Book Appointment</button>

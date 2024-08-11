@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
-from flask_mail import Mail, Message
+from flask_mail import Mail
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Date, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -39,6 +39,7 @@ app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
 
+
 # Define the Appointment model
 class Appointment(Base):
     __tablename__ = 'appointments'
@@ -53,6 +54,8 @@ class Appointment(Base):
     confirmation_number = Column(String, nullable=False, unique=True)
     appointment_status = Column(Enum('booked', 'canceled', name='appointment_status'), nullable=False, default='booked')
 
+
+# Define the User model
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -61,12 +64,15 @@ class User(Base):
     email = Column(String(150), unique=True, nullable=False)
     password = Column(String(150), nullable=False)
 
+
 # Create the database tables
 Base.metadata.create_all(engine)
+
 
 # Function to generate a unique confirmation number
 def generate_confirmation_number():
     return str(uuid.uuid4())
+
 
 # Function to add an appointment to the database
 def add_appointment(date, time, service, day, hairdresser, cost, email, confirmation_number):
@@ -83,6 +89,7 @@ def add_appointment(date, time, service, day, hairdresser, cost, email, confirma
         session.rollback()
     finally:
         session.close()
+
 
 # Define day availability and times dictionary
 availability_day = {
@@ -122,26 +129,33 @@ availability_day = {
     }
 }
 
+
+# Validation functions
 def validate_full_name(full_name):
     if full_name and isinstance(full_name, str):
         return "Valid full name"
     return "Invalid full name"
+
 
 def validate_username(username):
     if username and isinstance(username, str) and len(username) >= 3:
         return "Valid username"
     return "Invalid username"
 
+
 def validate_email(email):
     if email and "@" in email:
         return "Valid email"
     return "Invalid email"
+
 
 def validate_password(password):
     if password and len(password) >= 6:
         return "Valid password"
     return "Invalid password"
 
+
+# Signup route
 @app.route('/signup', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -171,12 +185,13 @@ def register():
             return redirect(url_for('register'))
         if password != confirm_password:
             flash("Passwords do not match")
-            return redirect(url_for('register'))
+            return redirect(url_for('signup'))
 
         session = SessionLocal()
         try:
             # Check if the email or username already exists
-            if session.query(User).filter_by(email=email).first() or session.query(User).filter_by(username=username).first():
+            if session.query(User).filter_by(email=email).first() or session.query(User).filter_by(
+                    username=username).first():
                 flash('Email or username already exists.')
                 return redirect(url_for('register'))
 
@@ -199,11 +214,10 @@ def register():
             session.close()
     return render_template('signup.html')
 
+
+# Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    print("Current Working Directory:", os.getcwd())
-    print("Templates Directory Contents:", os.listdir('templates'))
-
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -223,42 +237,52 @@ def login():
     return render_template('customer_login.html')
 
 
-
+# Logout route
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.pop('username', None)
     flash('Logged out successfully.')
     return redirect(url_for('logout_success'))
 
+
 @app.route('/logout_success')
 def logout_success():
-    return render_template('logout.html')
+    return render_template('index.html')
 
 
+# Customer account route
 @app.route('/customer_account', methods=['GET', 'POST'])
 def customer_account():
-    print("We care about our customers")
     if 'username' not in session:
         flash('You need to log in first.')
         return redirect(url_for('login'))
 
     username = session['username']
-    print(f"Username from session: {username}")  # Debugging print statement
 
     session_db = SessionLocal()
-    appointments = session_db.query(Appointment).filter_by(email=username).all()  # Assuming email is the username
-    print(f"Appointments fetched: {appointments}")  # Debugging print statement
+    user = session_db.query(User).filter_by(username=username).first()
+    if not user:
+        flash('User not found.')
+        return redirect(url_for('login'))
+
+    # Fetch appointments based on the user's email
+    appointments = session_db.query(Appointment).filter_by(email=user.email).all()
     session_db.close()
 
-    return render_template('customer_account.html', username=username, appointments=appointments)
+    return render_template('customer_account_details.html', user=user, appointments=appointments)
+
+
+# Appointment form route
 @app.route('/')
 def appointment_form():
     services = (
-        list(REG_HAIRSTYLES_PRICES.keys()) + list(WEAVE_HAIRSTYLES_PRICES.keys()) +
-        list(BRAIDS_AND_LOCS_PRICES.keys()) + list(HAIRCUT_STYLES_PRICES.keys())
+            list(REG_HAIRSTYLES_PRICES.keys()) + list(WEAVE_HAIRSTYLES_PRICES.keys()) +
+            list(BRAIDS_AND_LOCS_PRICES.keys()) + list(HAIRCUT_STYLES_PRICES.keys())
     )
     return render_template('index.html', services=services, availability=availability_day)
 
+
+# Function to get the day from a date
 @app.route('/get_day_from_date', methods=['POST'])
 def get_day_from_date():
     data = request.json
@@ -271,6 +295,8 @@ def get_day_from_date():
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 
+
+# Function to get hairdresser availability
 @app.route('/hairdresser_availability', methods=['POST'])
 def hairdresser_availability():
     data = request.json
@@ -285,6 +311,8 @@ def hairdresser_availability():
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 
+
+# Function to get hairdresser's full availability
 @app.route('/hairdresser_full_availability', methods=['POST'])
 def hairdresser_full_availability():
     data = request.json
@@ -306,67 +334,90 @@ def hairdresser_full_availability():
     except ValueError:
         return jsonify({'error': 'Invalid request format'}), 400
 
+
+# Function to book an appointment
 @app.route('/submit_appointment', methods=['POST'])
 def book_appointment():
     try:
+        # Get form data
         services_input = request.form.get('services')
-        if not services_input:
-            raise ValueError('Please select at least one service.')
-
-        selected_services = [service.strip() for service in services_input.split(',')]
         date_str = request.form.get('date')
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-
         time_str = request.form.get('time')
-        time = datetime.strptime(time_str, '%I:%M %p').time()
         hairdresser = request.form.get('hairdresser')
         email = request.form.get('email')
+        guest_booking = request.form.get('guest_booking')  # Flag to check if booking as a guest
 
-        if not all([date_str, time_str, hairdresser, email]):
+        # Validate form data
+        if not services_input or not date_str or not time_str or not hairdresser or not email:
             raise ValueError('Please fill out all fields.')
 
+        selected_services = [service.strip() for service in services_input.split(',')]
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+        time = datetime.strptime(time_str, '%I:%M %p').time()
         day = date.strftime('%A')
+
+        # Check if the selected day is Sunday
         if day == "Sunday":
             raise ValueError('Sorry, we are closed on Sundays. Please select another day.')
 
+        # Check if the hairdresser is fully booked
         fully_booked, available_times = is_fully_booked(hairdresser, date)
-
         if fully_booked:
-            raise ValueError('Sorry, hairdresser is fully booked.')
+            raise ValueError('Sorry, the hairdresser is fully booked.')
 
+        # Check if the selected time is available
         if time_str not in available_times:
             raise ValueError(f'Selected time is not available. Available times: {", ".join(available_times)}')
 
+        # Validate services
         for service in selected_services:
-            if (
-                service not in REG_HAIRSTYLES_PRICES and
+            if (service not in REG_HAIRSTYLES_PRICES and
                 service not in WEAVE_HAIRSTYLES_PRICES and
                 service not in BRAIDS_AND_LOCS_PRICES and
-                service not in HAIRCUT_STYLES_PRICES
-            ):
+                    service not in HAIRCUT_STYLES_PRICES):
                 raise ValueError('One or more selected services are not provided.')
 
+        # Calculate the total price
         total_price = calculate_total_price(selected_services)
         confirmation_number = generate_confirmation_number()
-        appointment_id = str(uuid.uuid4())  # Generate a unique appointment ID
 
-        add_appointment(date, datetime.combine(date, time), ", ".join(selected_services), day, hairdresser, total_price, email, confirmation_number)
+        # Add the appointment to the database
+        add_appointment(date, datetime.combine(date, time), ", ".join(selected_services), day, hairdresser, total_price,
+                        email, confirmation_number)
 
-        return render_template(
-            'appointment_details.html', day=day, date=date_str, time=time_str, total_price=total_price,
-            hairdresser=hairdresser, selected_services=selected_services, confirmation_number=confirmation_number,
-            email=email, appointment_id=appointment_id
-        )
+        if guest_booking:
+            # Guest booking: just show the appointment details without logging in
+            flash('Your appointment has been booked successfully as a guest!', 'success')
+            return render_template(
+                'appointment_details.html', day=day, date=date_str, time=time_str, total_price=total_price,
+                hairdresser=hairdresser, selected_services=selected_services, confirmation_number=confirmation_number,
+                email=email
+            )
+        else:
+            # Registered user: show the customer's account detailsc
+            session_db = SessionLocal()
+            user = session_db.query(User).filter_by(email=email).first()
+            appointments = session_db.query(Appointment).filter_by(email=email).all()
+            session_db.close()
+
+            flash('Your appointment has been booked successfully!', 'success')
+            return render_template('customer_details.html', user=user, appointments=appointments)
+
     except ValueError as ve:
         app.logger.error(f'Validation error: {ve}')
-        return render_template('error.html', error_message=str(ve))
+        flash(str(ve), 'danger')
+        return redirect(url_for('appointment_form'))
     except KeyError as e:
         app.logger.error(f'Missing key in form data: {e}')
-        return render_template('error.html', error_message=f'Missing key: {e}')
+        flash('An error occurred while processing your request. Please try again.', 'danger')
+        return redirect(url_for('appointment_form'))
     except Exception as e:
         app.logger.error(f'Error processing appointment submission: {e}')
-        return render_template('error.html', error_message='An error occurred while processing your request.')
+        flash('An unexpected error occurred. Please try again later.', 'danger')
+        return redirect(url_for('appointment_form'))
 
+
+# Function to check if a hairdresser is fully booked on a specific date
 def is_fully_booked(hairdresser, date):
     session = SessionLocal()
     try:
@@ -390,161 +441,8 @@ def is_fully_booked(hairdresser, date):
     finally:
         session.close()
 
-@app.route('/confirm_appointment', methods=['POST'])
-def confirm_appointment():
-    try:
-        day = request.form.get('day')
-        date = request.form.get('date')
-        time_str = request.form.get('time')
-        hairdresser = request.form.get('hairdresser')
-        selected_services = request.form.get('services').split(', ')
-        email = request.form.get('email')
-        confirmation_number = request.form.get('confirmation_number')
 
-        datetime_format = "%Y-%m-%d %I:%M %p"
-        appointment_datetime = datetime.strptime(f"{date} {time_str}", datetime_format)
-
-        add_appointment(
-            date=datetime.strptime(date, '%Y-%m-%d'),
-            time=appointment_datetime,
-            service=", ".join(selected_services),
-            day=day,
-            hairdresser=hairdresser,
-            cost=calculate_total_price(selected_services),
-            email=email,
-            confirmation_number=confirmation_number
-        )
-
-        msg = Message(
-            'Appointment Confirmation',
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[email]
-        )
-        msg.html = f"""
-            <h3>Appointment Confirmation</h3>
-            <p><strong>Day:</strong> {day}</p>
-            <p><strong>Date:</strong> {date}</p>
-            <p><strong>Time:</strong> {time_str}</p>
-            <p><strong>Hairdresser:</strong> {hairdresser}</p>
-            <p><strong>Services:</strong> {', '.join(selected_services)}</p>
-            <p><strong>Total Price:</strong> ${calculate_total_price(selected_services)}</p>
-            <p><strong>Confirmation Number:</strong> {confirmation_number}</p>
-            <p><a href="{url_for('cancel_appointment_email', confirmation_number=confirmation_number, _external=True)}">Cancel Appointment</a></p>
-        """
-
-        mail.send(msg)
-        return 'Appointment confirmation email sent successfully!'
-    except Exception as e:
-        app.logger.error(f'Error sending confirmation email: {str(e)}')
-        return 'An error occurred while processing your request.'
-
-@app.route('/cancel_appointment_email/<confirmation_number>', methods=['GET'])
-def cancel_appointment_email(confirmation_number):
-    session = SessionLocal()
-    try:
-        appointment = session.query(Appointment).filter_by(confirmation_number=confirmation_number).first()
-        if not appointment:
-            app.logger.error(f'Appointment with confirmation number {confirmation_number} not found.')
-            return render_template('cancel_appointment.html', message='Appointment not found.', error=True)
-
-        app.logger.info(f'Deleting appointment with confirmation number {confirmation_number}')
-        email = appointment.email
-        appointment.appointment_status = 'canceled'
-        session.commit()
-
-        send_cancellation_email(email)
-        return render_template('confirmed_cancellation.html')
-    except Exception as e:
-        session.rollback()
-        app.logger.error(f'Error cancelling appointment: {str(e)}')
-        return render_template('cancel_appointment.html', message='An error occurred while cancelling the appointment.', error=True)
-    finally:
-        session.close()
-
-def send_cancellation_email(email):
-    try:
-        msg = Message(
-            'Appointment Cancellation',
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[email]
-        )
-        msg.body = 'Your appointment has been successfully canceled.'
-        mail.send(msg)
-    except Exception as e:
-        app.logger.error(f'Error sending cancellation email: {str(e)}')
-
-@app.route('/cancel_appointment', methods=['POST'])
-def cancel_appointment():
-    try:
-        confirmation_number = request.form.get('confirmation_number')
-        if not confirmation_number:
-            flash('Confirmation number is required.')
-            return redirect(url_for('appointment_form'))
-
-        session = SessionLocal()
-        try:
-            appointment = session.query(Appointment).filter_by(confirmation_number=confirmation_number).first()
-            if not appointment:
-                app.logger.error(f'Appointment with confirmation number {confirmation_number} not found.')
-                flash('Appointment not found.')
-                return redirect(url_for('appointment_form'))
-
-            app.logger.info(f'Canceling appointment with confirmation number {confirmation_number}')
-            appointment.appointment_status = 'canceled'
-            session.commit()
-
-            flash('Appointment canceled successfully.')
-            return render_template('confirmed_cancellation.html')
-        except Exception as e:
-            session.rollback()
-            app.logger.error(f'Error canceling appointment: {str(e)}')
-            flash('An error occurred while canceling the appointment.')
-            return redirect(url_for('appointment_form'))
-        finally:
-            session.close()
-    except Exception as e:
-        app.logger.error(f'Error processing cancellation: {str(e)}')
-        flash('An error occurred while processing your request.')
-        return redirect(url_for('appointment_form'))
-
-@app.route('/change_appointment/<appointment_id>', methods=['POST'])
-def change_appointment(appointment_id):
-    session = SessionLocal()
-    try:
-        appointment = session.query(Appointment).filter_by(confirmation_number=appointment_id).first()
-        if not appointment:
-            flash('Appointment not found.')
-            return redirect(url_for('appointment_form'))
-
-        new_day = request.form.get('new_day')
-        new_date = request.form.get('new_date')
-        new_time = request.form.get('new_time')
-
-        if not all([new_day, new_date, new_time]):
-            flash('Please fill out all fields.')
-            return redirect(url_for('appointment_form'))
-
-        datetime_format = "%Y-%m-%d %I:%M %p"
-        try:
-            new_datetime = datetime.strptime(f"{new_date} {new_time}", datetime_format)
-            appointment.time = new_datetime
-            appointment.date = datetime.strptime(new_date, '%Y-%m-%d')
-            appointment.day = new_day
-            session.commit()
-            flash('Appointment updated successfully.')
-            return redirect(url_for('appointment_form'))
-        except Exception as e:
-            session.rollback()
-            app.logger.error(f'Error updating appointment: {str(e)}')
-            flash('An error occurred while updating the appointment.')
-            return redirect(url_for('appointment_form'))
-        finally:
-            session.close()
-    except Exception as e:
-        app.logger.error(f'Error processing change appointment: {str(e)}')
-        flash('An error occurred while processing your request.')
-        return redirect(url_for('appointment_form'))
-
+# Route to view the last appointment
 @app.route('/view_last_appointment', methods=['GET', 'POST'])
 def view_last_appointment():
     if request.method == 'POST':
@@ -555,7 +453,8 @@ def view_last_appointment():
 
         session = SessionLocal()
         try:
-            last_appointment = session.query(Appointment).filter_by(email=email).order_by(Appointment.time.desc()).first()
+            last_appointment = session.query(Appointment).filter_by(email=email).order_by(
+                Appointment.time.desc()).first()
             if not last_appointment:
                 flash('No appointment found for the provided email.')
                 return redirect(url_for('appointment_form'))
@@ -570,6 +469,8 @@ def view_last_appointment():
     else:
         return render_template('view_last_appointment.html', appointment=None)
 
+
+# Route to get fully booked dates for hairdressers
 @app.route('/get_fully_booked_dates', methods=['GET'])
 def get_fully_booked_dates():
     session = SessionLocal()
@@ -587,6 +488,8 @@ def get_fully_booked_dates():
     finally:
         session.close()
 
+
+# Function to generate unavailable dates for a hairdresser
 def generate_unavailable_dates(hairdresser):
     unavailable_dates = []
     start_date = datetime.today()
@@ -601,12 +504,16 @@ def generate_unavailable_dates(hairdresser):
 
     return unavailable_dates
 
+
+# Route to get unavailable dates for a hairdresser
 @app.route('/unavailable_dates', methods=['POST'])
 def unavailable_dates():
     hairdresser = request.json['hairdresser']
     unavailable_dates = generate_unavailable_dates(hairdresser)
     return jsonify(unavailable_dates)
 
+
+# Route to get available times for a hairdresser on a specific date
 @app.route('/available_times', methods=['POST'])
 def available_times():
     selected_date = request.json['date']
@@ -615,6 +522,8 @@ def available_times():
     times = availability_day.get(day_name, {}).get(hairdresser, [])
     return jsonify(times)
 
+
+# Route to get available times for a specific date
 @app.route('/get_available_times', methods=['POST'])
 def get_available_times():
     data = request.get_json()
@@ -625,6 +534,7 @@ def get_available_times():
     day_name = calendar.day_name[date_obj.weekday()]
     available_times = availability_day.get(day_name, {}).get(hairdresser, [])
     return jsonify({'available_times': available_times})
+
 
 if __name__ == '__main__':
     app.run(debug=True)

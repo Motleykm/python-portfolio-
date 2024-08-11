@@ -1,115 +1,79 @@
+import json
 import tkinter as tk
 from tkinter import ttk
-from tkcalendar import Calendar
+
 import requests
-from datetime import datetime
+from tkcalendar import Calendar
 
 
-# Function to fetch availability from the Flask server
-def fetch_availability():
-    date = cal.selection_get()
-    hairdresser = hairdresser_var.get()
-    date_str = date.strftime('%Y-%m-%d')
-
-    response = requests.post(
-        'http://127.0.0.1:5000/hairdresser_availability',
-        json={'date': date_str, 'hairdresser': hairdresser}
-    )
-
-    if response.status_code == 200:
-        data = response.json()
-        availability = data.get('availability', [])
-        availability_var.set(', '.join(availability))
-    else:
-        availability_var.set('Error fetching availability')
-
-
-# Function to fetch and disable unavailable dates from the Flask server
-def fetch_and_disable_unavailable_dates():
+def submit_appointment():
+    date = calendar.get_date()
+    time = time_var.get()
+    service = service_var.get()
     hairdresser = hairdresser_var.get()
 
-    response = requests.post(
-        'http://127.0.0.1:5000/hairdresser_full_availability',
-        json={'hairdresser': hairdresser}
+    # Prepare data to be sent to the Flask backend
+    data = {
+        'date': date,
+        'time': time,
+        'service': service,
+        'hairdresser': hairdresser
+    }
+
+    # First, check availability
+    availability_response = requests.post(
+        'http://localhost:5000/hairdresser_full_availability',
+        headers={'Content-Type': 'application/json'},
+        data=json.dumps({'hairdresser': hairdresser, 'date': date})
     )
 
-    if response.status_code == 200:
-        data = response.json()
-        unavailable_dates = data.get('unavailable_dates', [])
-        disable_dates(unavailable_dates)
+    if availability_response.status_code == 200:
+        # If available, proceed to book the appointment
+        appointment_response = requests.post(
+            'http://localhost:5000/submit_appointment',
+            headers={'Content-Type': 'application/json'},
+            data=json.dumps(data)
+        )
+
+        if appointment_response.status_code == 200:
+            result_label.config(text='Appointment booked successfully!')
+        else:
+            result_label.config(text=f'Failed to book appointment: {appointment_response.text}')
     else:
-        print('Error fetching unavailable dates')
+        result_label.config(text=f'Failed to fetch availability: {availability_response.text}')
 
 
-# Function to disable specific dates in the calendar
-def disable_dates(dates):
-    cal.calevent_remove('unavailable')  # Remove previous unavailable events
-    cal.calevent_remove('available')  # Remove previous available events
-    cal.calevent_remove('sunday')  # Remove previous Sunday events
-    available_days = set()
-
-    for date in dates:
-        date_obj = datetime.strptime(date, '%Y-%m-%d')
-        cal.calevent_create(date_obj, 'Unavailable', 'unavailable')
-
-    # Disable Sundays and highlight available days
-    for year in range(datetime.now().year, datetime.now().year + 2):  # Adjust year range as needed
-        for month in range(1, 13):
-            for day in range(1, 32):
-                try:
-                    date_obj = datetime(year, month, day)
-                    day_name = date_obj.strftime('%A')
-                    if day_name == "Sunday":
-                        cal.calevent_create(date_obj, 'Sunday', 'sunday')
-                    elif date_obj.strftime('%Y-%m-%d') not in dates:
-                        available_days.add(date_obj.strftime('%Y-%m-%d'))
-                except ValueError:
-                    continue
-
-    for available_date in available_days:
-        date_obj = datetime.strptime(available_date, '%Y-%m-%d')
-        cal.calevent_create(date_obj, 'Available', 'available')
-
-
-# Function to handle hairdresser change
-def on_hairdresser_change(event):
-    fetch_and_disable_unavailable_dates()
-
-
-# Create the main Tkinter window
+# Create the main window
 root = tk.Tk()
-root.title("Hairdresser Availability")
+root.title('Appointment Booking')
 
-# Create a Calendar widget
-cal = Calendar(root, selectmode='day', year=2024, month=6, day=12)
-cal.pack(pady=20)
+# Create and place UI elements
+ttk.Label(root, text='Select Date:').grid(row=0, column=0, padx=10, pady=10)
+calendar = Calendar(root)
+calendar.grid(row=0, column=1, padx=10, pady=10)
 
-# Configure tags for styling
-cal.tag_config('unavailable', background='gray', foreground='white')
-cal.tag_config('available', background='violet', foreground='black')
-cal.tag_config('sunday', background='white', foreground='black')
+ttk.Label(root, text='Select Time:').grid(row=1, column=0, padx=10, pady=10)
+time_var = tk.StringVar()
+time_options = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM']
+time_menu = ttk.OptionMenu(root, time_var, time_options[0], *time_options)
+time_menu.grid(row=1, column=1, padx=10, pady=10)
 
-# Hairdresser selection
-ttk.Label(root, text="Select Hairdresser:").pack(pady=10)
+ttk.Label(root, text='Select Service:').grid(row=2, column=0, padx=10, pady=10)
+service_var = tk.StringVar()
+service_options = ['Haircut', 'Color', 'Styling']
+service_menu = ttk.OptionMenu(root, service_var, service_options[0], *service_options)
+service_menu.grid(row=2, column=1, padx=10, pady=10)
+
+ttk.Label(root, text='Select Hairdresser:').grid(row=3, column=0, padx=10, pady=10)
 hairdresser_var = tk.StringVar()
-hairdresser_combo = ttk.Combobox(root, textvariable=hairdresser_var)
-hairdresser_combo['values'] = ["Jamil", "Shanice", "Cherish", "Arrinana"]
-hairdresser_combo.current(0)  # Set default value
-hairdresser_combo.bind("<<ComboboxSelected>>", on_hairdresser_change)
-hairdresser_combo.pack(pady=10)
+hairdresser_options = ['Shanice', 'Jamil', 'Cherish']
+hairdresser_menu = ttk.OptionMenu(root, hairdresser_var, hairdresser_options[0], *hairdresser_options)
+hairdresser_menu.grid(row=3, column=1, padx=10, pady=10)
 
-# Fetch availability button
-fetch_btn = ttk.Button(root, text="Fetch Availability", command=fetch_availability)
-fetch_btn.pack(pady=20)
+submit_button = ttk.Button(root, text='Book Appointment', command=submit_appointment)
+submit_button.grid(row=4, column=0, columnspan=2, pady=10)
 
-# Display availability
-ttk.Label(root, text="Available Times:").pack(pady=10)
-availability_var = tk.StringVar()
-availability_label = ttk.Label(root, textvariable=availability_var)
-availability_label.pack(pady=10)
+result_label = ttk.Label(root, text='')
+result_label.grid(row=5, column=0, columnspan=2, pady=10)
 
-# Fetch and disable unavailable dates for the default selected hairdresser
-fetch_and_disable_unavailable_dates()
-
-# Start the Tkinter event loop
 root.mainloop()
