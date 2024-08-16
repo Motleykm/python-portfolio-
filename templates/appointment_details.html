@@ -60,20 +60,14 @@
             </div>
 
             <form action="{{ url_for('cancel_appointment') }}" method="POST" class="text-center mb-3">
-                <input type="hidden" name="appointment_id" value="{{ appointment_id }}">
                 <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
+                <input name="email" type="hidden" value="{{ email }}">
                 <button type="submit" class="btn btn-danger w-100 mb-3">Cancel Appointment</button>
             </form>
 
-            <form action="{{ url_for('change_appointment', appointment_id=appointment_id) }}" method="POST" class="text-center mb-3">
-                <input type="hidden" name="appointment_id" value="{{ appointment_id }}">
+            <form action="{{ url_for('reschedule_appointment') }}" class="text-center mb-3" method="POST">
                 <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
-                <input type="hidden" name="day" value="{{ day }}">
-                <input type="hidden" name="date" value="{{ date }}">
-                <input type="hidden" name="time" value="{{ time }}">
-                <input type="hidden" name="hairdresser" value="{{ hairdresser }}">
-                <input type="hidden" name="services" value="{{ ', '.join(selected_services) }}">
-                <input type="hidden" name="total_price" value="{{ total_price }}">
+                <input name="email" type="hidden" value="{{ email }}">
                 <div class="mb-3">
                     <label for="new_day" class="form-label">New Day:</label>
                     <select name="new_day" id="new_day" class="form-control">
@@ -104,7 +98,7 @@
                 <input type="hidden" name="services" value="{{ ', '.join(selected_services) }}">
                 <input type="hidden" name="total_price" value="{{ total_price }}">
                 <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
-                <input type="email" name="email" class="form-control mb-3" placeholder="Your Email" required>
+                <input name="email" type="hidden" value="{{ email }}">
                 <button type="submit" class="btn btn-success w-100">Confirm Appointment</button>
             </form>
         </div>

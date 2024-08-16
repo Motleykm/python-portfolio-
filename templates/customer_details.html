@@ -12,9 +12,9 @@
     <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ml-auto">
             <li class="nav-item">
-                    <span class="navbar-text">
-                        Logged in as: {{ user.username }}
-                    </span>
+                <span class="navbar-text">
+                    Logged in as: {{ user.username }}
+                </span>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="/logout">Log Out</a>
@@ -62,6 +62,13 @@
 
     <div class="text-center">
         <a class="btn btn-primary" href="/">Book a New Appointment</a>
+    </div>
+
+    <div class="text-center mt-4">
+        <p>Unsatisfied with your service? You can come back to us at any time.</p>
+        <form action="/delete_account" method="POST">
+            <button class="btn btn-danger" type="submit">Delete Account</button>
+        </form>
     </div>
 </div>
 </body>

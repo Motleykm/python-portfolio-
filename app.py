@@ -234,8 +234,38 @@ def login():
             flash('Invalid username or password.')
             return redirect(url_for('login'))
 
-    return render_template('customer_login.html')
+    return render_template('login.html')
 
+
+# deletes user account route
+@app.route('/delete_account', methods=['GET', 'POST'])
+def delete_account():
+    if 'username' not in session:
+        flash('You need to log in first.')
+        return redirect(url_for('login'))
+
+    username = session['username']
+    session_db = SessionLocal()
+
+    try:
+        user = session_db.query(User).filter_by(username=username).first()
+
+        if user:
+            session_db.delete(user)
+            session_db.commit()
+            session.pop('username', None)  # Log out the user after account deletion
+            flash('Account successfully deleted.')
+            return redirect(url_for('signup'))
+        else:
+            flash('No account found.')
+            return redirect(url_for('customer_account'))
+    except Exception as e:
+        session_db.rollback()
+        app.logger.error(f'Error occurred while deleting account: {e}')
+        flash('An error occurred while deleting your account. Please try again.')
+        return redirect(url_for('customer_account'))
+    finally:
+        session_db.close()
 
 # Logout route
 @app.route('/logout', methods=['GET', 'POST'])

@@ -59,7 +59,7 @@
         <form action="/submit_appointment" method="post" id="appointment-form">
             <div class="mb-3">
                 <label for="hairdresser-select" class="form-label">Select Hairdresser:</label>
-                <select id="hairdresser-select" name="hairdresser" class="form-control">
+                <select class="form-control" id="hairdresser-select" name="hairdresser" required>
                     <option value="Jamil">Jamil</option>
                     <option value="Shanice">Shanice</option>
                     <option value="Cherish">Cherish</option>
@@ -74,19 +74,20 @@
 
             <div class="mb-3">
                 <label for="day-input" class="form-label">Day:</label>
-                <input type="text" id="day-input" name="day" class="form-control" readonly>
+                <input class="form-control" id="day-input" name="day" readonly required type="text">
             </div>
 
             <div class="mb-3">
                 <label for="time-select" class="form-label">Select Time:</label>
-                <select id="time-select" name="time" class="form-control">
+                <select class="form-control" id="time-select" name="time" required>
                     <!-- Options will be dynamically populated -->
                 </select>
             </div>
 
             <div class="mb-3">
                 <label for="services-input" class="form-label">Select Services:</label>
-                <input type="text" id="services-input" name="services" class="form-control" placeholder="Enter services (comma separated)">
+                <input class="form-control" id="services-input" name="services" placeholder="Enter services (comma separated)"
+                       required type="text">
             </div>
 
             <div class="mb-3">
