@@ -105,100 +105,64 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        function fetchAvailableTimes(hairdresser, date) {
-            $.ajax({
-                url: '/get_available_times',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ hairdresser: hairdresser, date: date }),
-                success: function(response) {
-                    const timeSelect = $('#time-select');
-                    timeSelect.empty();
-                    if (response.available_times && response.available_times.length > 0) {
-                        response.available_times.forEach(time => {
-                            timeSelect.append(`<option value="${time}">${time}</option>`);
-                        });
-                    } else {
-                        alert('No available times for the selected date.');
-                    }
-                },
-                error: function() {
-                    alert('Failed to fetch available times');
-                }
-            });
-        }
-
-        function fetchUnavailableDates(hairdresser) {
-            $.ajax({
-                url: '/hairdresser_full_availability',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ hairdresser: hairdresser }),
-                success: function(response) {
-                    const unavailableDates = response.unavailable_dates;
-                    setupFlatpickr(unavailableDates);
-                },
-                error: function() {
-                    alert('Failed to fetch unavailable dates');
-                }
-            });
-        }
-
-        function setupFlatpickr(unavailableDates) {
-            const unavailableDatesSet = new Set(unavailableDates);
-            $('#date-input').flatpickr({
-                dateFormat: "Y-m-d",
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dateStr = dayElem.dateObj.toISOString().split('T')[0];
-                    const dayName = dayElem.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-
-                    if (unavailableDatesSet.has(dateStr)) {
-                        dayElem.classList.add('unavailable');
-                    } else if (dayName === 'Sunday') {
-                        dayElem.classList.add('sunday');
-                    } else {
-                        dayElem.classList.add('available');
-                    }
-                }
-            });
-        }
-
         $(document).ready(function() {
-            $('#date-input').on('change', function() {
-                const date = $(this).val();
-                const hairdresser = $('#hairdresser-select').val();
-                fetchAvailableTimes(hairdresser, date);
+            $('#hairdresser-select').change(function() {
+                const hairdresser = $(this).val();
+                fetchUnavailableDates(hairdresser);
+            });
 
+            function fetchUnavailableDates(hairdresser) {
                 $.ajax({
-                    url: '/get_day_from_date',
+                    url: '/hairdresser_full_availability',
                     method: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ date: date }),
+                    data: JSON.stringify({ hairdresser: hairdresser }),
                     success: function(response) {
-                        if (response.day) {
-                            $('#day-input').val(response.day);
+                        setupFlatpickr(response.unavailable_dates);
+                    },
+                    error: function() {
+                        alert('Failed to fetch unavailable dates');
+                    }
+                });
+            }
+
+            function setupFlatpickr(unavailableDates) {
+                const unavailableDatesSet = new Set(unavailableDates);
+                $('#date-input').flatpickr({
+                    dateFormat: "Y-m-d",
+                    disable: Array.from(unavailableDatesSet),
+                    onReady: function(selectedDates, dateStr, instance) {
+                        instance.open();
+                    },
+                    onChange: function(selectedDates, dateStr, instance) {
+                        $('#day-input').val(new Date(selectedDates).toLocaleDateString('en-US', { weekday: 'long' }));
+                        fetchAvailableTimes($('#hairdresser-select').val(), dateStr);
+                    }
+                });
+            }
+
+            function fetchAvailableTimes(hairdresser, date) {
+                $.ajax({
+                    url: '/get_available_times',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ hairdresser: hairdresser, date: date }),
+                    success: function(response) {
+                        const timeSelect = $('#time-select');
+                        timeSelect.empty();
+                        if (response.available_times && response.available_times.length > 0) {
+                            response.available_times.forEach(time => {
+                                timeSelect.append(`<option value="${time}">${time}</option>`);
+                            });
                         } else {
-                            alert('Failed to calculate day from date');
+                            alert('No available times for the selected date.');
                         }
                     },
                     error: function() {
-                        alert('Failed to calculate day from date');
+                        alert('Failed to fetch available times');
                     }
                 });
-            });
-
-            $('#hairdresser-select').on('change', function() {
-                const hairdresser = $(this).val();
-                fetchUnavailableDates(hairdresser);
-                const date = $('#date-input').val();
-                if (date) {
-                    fetchAvailableTimes(hairdresser, date);
-                }
-            });
-
-            // Initial load
-            const initialHairdresser = $('#hairdresser-select').val();
-            fetchUnavailableDates(initialHairdresser);
+            }
         });
     </script>
 </body>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reschedule Appointment</title>
+</head>
+<body>
+<!-- templates/reschedule_form.html -->
+<!-- Ensure that this form is served by a Flask route that renders this template -->
+<form action="{{ url_for('reschedule_appointment', appointment_id=appointment.id) }}" method="post">
+    <label for="new_date">New Date:</label>
+    <input id="new_date" name="new_date" required type="date">
+
+    <label for="new_time">New Time:</label>
+    <input id="new_time" name="new_time" required type="time">
+
+    <button type="submit">Reschedule</button>
+</form>
+</body>
+</html>

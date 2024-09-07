@@ -59,12 +59,15 @@
                 <p>{{ confirmation_number }}</p>
             </div>
 
-            <form action="{{ url_for('cancel_appointment') }}" method="POST" class="text-center mb-3">
+            <!-- Cancel Appointment Form -->
+            <form action="{{ url_for('cancel_appointment', confirmation_number=confirmation_number) }}" class="text-center mb-3"
+                  method="POST">
                 <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
                 <input name="email" type="hidden" value="{{ email }}">
                 <button type="submit" class="btn btn-danger w-100 mb-3">Cancel Appointment</button>
             </form>
 
+            <!-- Reschedule Appointment Form -->
             <form action="{{ url_for('reschedule_appointment') }}" class="text-center mb-3" method="POST">
                 <input type="hidden" name="confirmation_number" value="{{ confirmation_number }}">
                 <input name="email" type="hidden" value="{{ email }}">
@@ -90,6 +93,7 @@
                 <button type="submit" class="btn btn-primary w-100">Change Appointment</button>
             </form>
 
+            <!-- Confirm Appointment Form -->
             <form action="{{ url_for('confirm_appointment') }}" method="POST" class="text-center">
                 <input type="hidden" name="day" value="{{ day }}">
                 <input type="hidden" name="date" value="{{ date }}">
